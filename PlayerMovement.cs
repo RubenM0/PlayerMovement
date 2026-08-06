@@ -5,21 +5,22 @@ public class PlayerMovement : MonoBehaviour
 {
     public static PlayerMovement instance { get; private set; }
 
-    //Update visuals
-    public event EventHandler OnPlayerDashed;
-    
     [SerializeField] private InputManager input;
     [SerializeField] private Transform groundCheck;
  
     private Rigidbody rb;
     
     //Walking
-    private float moveForce = 2f;
+    [SerializeField] private float moveForce = 90f;
+    
+    //Airborne
+    [SerializeField] private float airControlMultiplier = 0.9f;
+    [SerializeField] private float airDrag = 2f;
     private bool isWalking;
     public bool IsWalking => isWalking;
     
     //Jumping
-    private float jumpForce = 40f;
+    private float jumpForce = 20f;
     
     //Crouching
     private Vector3 playerScale;
@@ -27,17 +28,6 @@ public class PlayerMovement : MonoBehaviour
     
     public bool isCrouching {get; private set;}
     private bool canUncrouch;
-    
-    //Sliding (atp)
-    private float slideForce = 4f;
-    private bool isSliding;
-    
-    //Dashing
-    private float dashForce = 70f;
-    private float dashCooldown = 1.8f;
-    public float DashCooldown => dashCooldown;
-    
-    private bool readyToDash;
     
     private void Awake()
     {
@@ -51,7 +41,6 @@ public class PlayerMovement : MonoBehaviour
         
         rb = GetComponent<Rigidbody>();
 
-        readyToDash = true;
         playerScale = transform.localScale;
     }
 
@@ -62,63 +51,41 @@ public class PlayerMovement : MonoBehaviour
         input.OnPlayerCrouchPerformed += Input_OnPlayerCrouchPerformed;
         input.OnPlayerCrouchCanceled += Input_OnPlayerCrouchCanceled;
         
-        input.OnPlayerDashPerformed += Input_OnPlayerDashPerformed;
+        input.OnPlayerSprintPerformed += Input_OnPlayerSprintPerformed;
     }
     
     private void FixedUpdate()
     {
+        bool grounded = CheckGroundDetection();
+
         Vector2 inputVector = input.GetMovementNormalized();
         Vector3 inputDirection = new Vector3(inputVector.x, 0, inputVector.y);
         inputDirection = transform.right * inputDirection.x + transform.forward * inputDirection.z;
-
-        if (isSliding)
-            return;
         
-        rb.AddForce(inputDirection * moveForce, ForceMode.Impulse);
+        float force = grounded ? moveForce : moveForce * airControlMultiplier;
+        rb.AddForce(inputDirection * force, ForceMode.Acceleration);
 
-        isWalking = inputDirection != Vector3.zero && CheckGroundDetection();
+        //Basically creating air drag so player isn't faster in air
+        if (!grounded)
+        {
+            Vector3 velocity = rb.linearVelocity;
+            Vector3 horizontal = new Vector3(velocity.x, 0f, velocity.z);
+            horizontal = Vector3.Lerp(horizontal, Vector3.zero, airDrag * Time.deltaTime);
+            rb.linearVelocity = new Vector3(horizontal.x, velocity.y, horizontal.z);
+        }
+
+        isWalking = inputDirection != Vector3.zero && grounded;
         
         AllowedToUncrouch();
         ForceUncrouch();
     }
     
     //Dashing
-    private void Input_OnPlayerDashPerformed(object sender, EventArgs e)
+    private void Input_OnPlayerSprintPerformed(object sender, EventArgs e)
     {
-        if (readyToDash)
-        {
-            Vector3 dashDirection = GetPlayerDirection();
-        
-            rb.AddForce(dashDirection * dashForce, ForceMode.Impulse);
-        
-            OnPlayerDashed?.Invoke(this, EventArgs.Empty);
-            readyToDash = false;
-        
-            Invoke(nameof(ResetDashCooldown), dashCooldown);
-        }
+        //Empty atm
     }
 
-    //Dash + sliding based on key holding
-    private Vector3 GetPlayerDirection()
-    {
-        Vector2 inputVector = input.GetMovementNormalized();
-    
-        //Check for holding a movement key
-        if (inputVector.sqrMagnitude > 0.01f)
-        {
-            Vector3 direction = new Vector3(inputVector.x, 0f, inputVector.y);
-            direction = transform.right * direction.x + transform.forward * direction.z;
-            return direction.normalized;
-        }
-    
-        return transform.forward;
-    }
-    
-    private void ResetDashCooldown()
-    {
-        readyToDash = true;
-    }
-    
     private void Input_OnPlayerJumpPerformed(object sender, EventArgs e)
     {
         if (!CheckGroundDetection())
@@ -129,6 +96,7 @@ public class PlayerMovement : MonoBehaviour
 
     public bool CheckGroundDetection()
     {
+        //Use this value for the Y axis to place the ground check game object: -0.95
         Vector3 playerDownVector = Vector3.down; 
         
         float radius = 0.025f;
@@ -155,12 +123,6 @@ public class PlayerMovement : MonoBehaviour
         transform.position = new Vector3(transform.position.x, transform.position.y - 0.5f, transform.position.z);
             
         isCrouching = true;
-        
-        Vector2 inputVector = input.GetMovementNormalized();
-        if (inputVector.sqrMagnitude > 0.1f)
-        {
-            isSliding = true;
-        }
     }
 
     private void Input_OnPlayerCrouchCanceled(object sender, EventArgs e)
@@ -172,7 +134,6 @@ public class PlayerMovement : MonoBehaviour
         transform.position = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
             
         isCrouching = false;
-        isSliding = false;
     }
     
     private bool AllowedToUncrouch()

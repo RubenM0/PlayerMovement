@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using UnityEngine.InputSystem;
 
+
 public class InputManager : MonoBehaviour
 {
     private PlayerInputActions playerInputActions;
@@ -13,29 +14,32 @@ public class InputManager : MonoBehaviour
     public event EventHandler OnPlayerCrouchPerformed;
     public event EventHandler OnPlayerCrouchCanceled;
 
-    //Dashing
-    public event EventHandler OnPlayerDashPerformed;
+    //Sprinting
+    public event EventHandler OnPlayerSprintPerformed;
     
-    //Interacting
-    public event EventHandler OnPlayerInteractPerformed;
-
+    
     //Pause game
     public event EventHandler OnPlayerPausedGame;
+
+    //Interact
+    public event EventHandler OnPlayerInteract;
+    //Alternative
+    public event EventHandler OnPlayerAlternativeInteractPerformed;
     
     private void Awake()
     {
         playerInputActions = new PlayerInputActions();
         playerInputActions.Enable();
-    }
-
-    private void Start()
-    {
+        
         playerInputActions.Player.Jump.performed += JumpOnPerformed;
         
         playerInputActions.Player.Crouch.performed += CrouchOnPerformed;
         playerInputActions.Player.Crouch.canceled += CrouchOnCanceled;
 
-        playerInputActions.Player.Dash.performed += DashOnPerformed;
+        playerInputActions.Player.Sprint.performed += SprintOnPerformed;
+        
+        playerInputActions.Player.Interact.performed += InteractOnPerformed;
+        playerInputActions.Player.AlternativeInteract.performed += AlternativeInteractOnPerformed;
     }
 
     private void OnDestroy()
@@ -70,12 +74,22 @@ public class InputManager : MonoBehaviour
         }
     }
     
-    //Dash
-    private void DashOnPerformed(InputAction.CallbackContext context)
+    //Sprint
+    private void SprintOnPerformed(InputAction.CallbackContext context)
     {
-        OnPlayerDashPerformed?.Invoke(this, EventArgs.Empty);
+        OnPlayerSprintPerformed?.Invoke(this, EventArgs.Empty);
     }
 
+    //Interactions
+    private void InteractOnPerformed(InputAction.CallbackContext obj)
+    {
+        OnPlayerInteract?.Invoke(this, EventArgs.Empty);
+    }
+    private void AlternativeInteractOnPerformed(InputAction.CallbackContext context)
+    {
+        OnPlayerAlternativeInteractPerformed?.Invoke(this, EventArgs.Empty);
+    }
+    
     public Vector2 GetMovementNormalized()
     {
         Vector2 inputVector = playerInputActions.Player.Move.ReadValue<Vector2>();

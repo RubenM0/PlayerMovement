@@ -2,10 +2,10 @@ using UnityEngine;
 
 public class CameraMovement : MonoBehaviour
 {
-    [SerializeField] private Transform playerBody;
+    [SerializeField] private Rigidbody playerBody;
     [SerializeField] private InputManager input;
 
-    private float sensitivity = 30f;
+    private float sensitivity = 0.15f;
     private float xRot;
 
     private void Awake()
@@ -13,7 +13,7 @@ public class CameraMovement : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
-
+    
     private void Update()
     {
         Look();
@@ -23,13 +23,13 @@ public class CameraMovement : MonoBehaviour
     {
         Vector2 direction = input.GetCameraRotation();
 
-        float mouseX = direction.x * sensitivity * Time.deltaTime;
-        float mouseY = direction.y * sensitivity * Time.deltaTime;
+        float mouseX = direction.x * sensitivity;
+        float mouseY = direction.y * sensitivity;
 
         xRot -= mouseY;
         xRot = Mathf.Clamp(xRot, -90f, 90f);
 
         transform.localRotation = Quaternion.Euler(xRot, 0f, 0f);
-        playerBody.Rotate(Vector3.up * mouseX);
+        playerBody.MoveRotation(playerBody.rotation * Quaternion.Euler(0f, mouseX, 0f));
     }
 }
